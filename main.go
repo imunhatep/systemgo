@@ -8,10 +8,14 @@ import (
 	"os/signal"
 	"syscall"
 	"fmt"
+	"runtime"
+	"log"
 )
 
 func main() {
-	taskMng := system.Manager{}
+	runtime.GOMAXPROCS(2)
+
+	taskMng := &system.Manager{}
 	go taskMng.Run(readConfig("./systemg.json"))
 
 	sigChan := make(chan bool)
@@ -25,7 +29,7 @@ func main() {
 
 func handleSig(sigChan chan<- bool) {
 	sigs := make(chan os.Signal)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
 		sig := <-sigs
@@ -37,20 +41,16 @@ func handleSig(sigChan chan<- bool) {
 	fmt.Println("awaiting signal")
 }
 
-func readConfig(path string) *[]system.Task {
+func readConfig(path string) []system.Task {
 	dat, err := ioutil.ReadFile(path)
-	check(err)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	var tasks []system.Task
-	err = json.Unmarshal(dat, &tasks)
-
-	check(err)
-
-	return &tasks
-}
-
-func check(e error) {
-	if e != nil {
-		panic(e)
+	if err = json.Unmarshal(dat, &tasks); err != nil {
+		log.Fatal(err)
 	}
+
+	return tasks
 }

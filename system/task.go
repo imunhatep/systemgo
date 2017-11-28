@@ -44,94 +44,105 @@ func (t Task) GetUsedMemory(memout chan<- string) {
 	}
 
 	// check this type assertion to avoid a panic
-	memout <- fmt.Sprintf("[%s] TASK PID[%d] memory usage: %d bytes", t.Name, t.running.GetPid(), mem)
+	memout <- fmt.Sprintf("[TASK][%s] PID[%d] memory usage: %d bytes", t.Name, t.running.GetPid(), mem)
 }
 
-func (t *Task) Run(finished chan<- error, out, err chan<- string) {
+func (t *Task) Run(exit chan bool, out, err chan<- string) {
 	if t.isStarted {
-		log.Printf("[%s] Task already started", t.Name)
+		log.Printf("[TASK][%s] Task already started", t.Name)
 		return
 	}
 
 	t.isStopped = false
 	t.isStarted = true
 
+	// do not start process if Task is exit
 	for !t.isStopped {
-		log.Printf("\n%s \nnew: %d, fin: %d, run: %d\n\n", t.Name, t.IsNew(), t.IsFinished(), t.IsRunning())
-
-		// do not start process if Task is stopped
-		if t.IsNew() {
-			log.Printf("[%s] process creating..", t.Name)
-			t.running = t.execProcess(out, err)
-		} else if t.IsFinished() {
-			if t.running != nil {
-				t.history = append(t.history, t.running)
-				t.running = nil
-			}
-
-			// do not re-start process if Task is stopped
-			if t.Restart {
-				log.Printf("[%s] process restarting..", t.Name)
-				t.running = t.execProcess(out, err)
-			}
-
-			log.Printf("[%s] history count: %d", t.Name, len(t.history))
-		} else if t.IsRunning() {
-			log.Printf("[%s][%d] process is running", t.running.GetName(), t.running.GetPid())
-		} else {
-			log.Printf("[%s] nothing to do, stopped: %s", t.running.GetName(), t.isStopped)
+		select {
+		case <-exit:
+			t.isStopped = true
+			t.stopProcess()
+			return
+		case <-time.After(time.Second):
+			t.handleProcess(out, err)
 		}
-
-		time.Sleep(time.Second)
 	}
-
-	close(finished)
 }
 
 func (t *Task) Stop(done chan<- error) {
-	log.Printf("[%s] STOP!", t.Name)
+	log.Printf("[TASK][%s] STOP exiting.. stopped: %d", t.Name, t.isStopped)
 
-	if !t.isStarted {
-		log.Fatal("Task is not running")
-		return
-	}
+	time.Sleep(3 * time.Second)
 
-	if t.isStopped {
-		log.Printf("[%s] Task.Stop() already have been called", t.Name)
-		return
-	}
-
-	t.isStopped = true
-
-	if t.running != nil {
-		t.running.Stop(done)
-	} else {
-		close(done)
-	}
-
-	t.isStarted = false
+	done <- nil
 }
 
-func (t Task) execProcess(out, err chan<- string) *process {
+func (t Task) createProcess(out, err chan<- string) *process {
 	running := NewProcess(t.Name, t.Exec, t.Params)
+
+	t.scanProcessStd(t.Name, &running.Out, out)
+	t.scanProcessStd(t.Name, &running.Err, err)
 
 	started := make(chan error)
 	go running.Start(started)
 	<-started
 
-	t.scanProcessStd(t.Name, running.Out, out)
-	t.scanProcessStd(t.Name, running.Err, err)
-
 	return running
 }
 
-func (t Task) scanProcessStd(name string, pipe io.ReadCloser, out chan<- string) {
-	outScanner := bufio.NewScanner(pipe)
+func (t *Task) handleProcess(out, err chan<- string) {
+	if t.IsNew() {
+		log.Printf("[TASK][%s] creating", t.Name)
+		t.running = t.createProcess(out, err)
+
+		return
+	}
+
+	if t.IsFinished() {
+		if t.running != nil {
+			t.history = append(t.history, t.running)
+			t.running = nil
+		}
+
+		if t.Restart {
+			log.Printf("[TASK][%s] restarting", t.Name)
+			t.running = t.createProcess(out, err)
+			return
+		}
+
+		// nothing to do?!
+		time.Sleep(4 * time.Second)
+	}
+
+	if t.IsRunning() {
+		//log.Printf("[TASK][%s][%d] running with stopped?: %d", t.running.GetName(), t.running.GetPid(), t.isStopped)
+		return
+	}
+}
+
+func (t *Task) stopProcess() error {
+	if t.isStopped {
+		log.Printf("[TASK][%s] Task.Stop() already have been called", t.Name)
+		return nil
+	}
+
+	log.Printf("[TASK][%s] Received EXIT signal", t.Name)
+	t.isStopped = true
+
+	if t.IsRunning() {
+		return t.running.Stop()
+	}
+
+	return nil
+}
+
+func (t Task) scanProcessStd(name string, pipe *io.ReadCloser, out chan<- string) {
+	outScanner := bufio.NewScanner(*pipe)
 
 	go func() {
 		for outScanner.Scan() {
 			logs := outScanner.Text()
-			out <- fmt.Sprintf("[%s][STD] %s", name, logs)
+			out <- fmt.Sprintf("[%s] %s", name, logs)
 		}
 	}()
 }
