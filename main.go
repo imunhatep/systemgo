@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
-	"github.com/imunhatep/systemg/process"
+	"github.com/imunhatep/systemg/system"
 	"os"
 	"os/signal"
 	"syscall"
@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-	taskMng := process.Manager{}
+	taskMng := system.Manager{}
 	taskMng.Run(readConfig("./systemg.json"))
 
 	go showStatus(taskMng.MemPipe, taskMng.OutPipe, taskMng.ErrPipe)
@@ -56,11 +56,11 @@ func showStatus(memout, stdout, stderr <-chan string) {
 	}
 }
 
-func readConfig(path string) *[]process.Task {
+func readConfig(path string) *[]system.Task {
 	dat, err := ioutil.ReadFile(path)
 	check(err)
 
-	var tasks []process.Task
+	var tasks []system.Task
 	err = json.Unmarshal(dat, &tasks)
 
 	check(err)
