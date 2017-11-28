@@ -57,7 +57,7 @@ func (t *Task) Run(started chan<- error, out, err chan<- string) {
 	t.isStarted = true
 
 	for {
-		log.Println(t.Name, "new: ", t.IsNew(), "fin: ", t.IsFinished(), "run: ", t.IsRunning())
+		log.Println(t.Name, "\nnew: ", t.IsNew(), "\nfin: ", t.IsFinished(), "\nrun: ", t.IsRunning())
 
 		// do not start process if Task is stopped
 		if t.IsNew() && !t.isStopped {

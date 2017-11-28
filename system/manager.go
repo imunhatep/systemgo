@@ -18,10 +18,13 @@ type Manager struct {
 
 func (t *Manager) Run(tasks *[]Task) {
 	if t.isRunning || t.isStopped {
-		log.Fatal("TaskManager already started")
+		log.Fatal("PM already started")
 	}
 
-	log.Printf("Starting PM with: %s", tasks)
+	log.Println("Starting PM with:")
+	for _, task := range *tasks {
+		log.Printf("Name: %s\nExec: %s\nParams: %s\nRestart: %s", task.Name, task.Exec, task.Params, task.Restart)
+	}
 
 	t.isStopped = false
 	t.isRunning = true
