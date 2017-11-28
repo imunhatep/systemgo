@@ -1,0 +1,4 @@
+[
+  {"name": "php1", "exec": "/usr/bin/php", "params": ["./gen.php", "-m=0", "-x=5"], "restart": true},
+  {"name": "php2", "exec": "/usr/bin/php", "params": ["./gen.php", "-m=5", "-x=10"]}
+]
