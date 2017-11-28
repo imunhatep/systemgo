@@ -20,11 +20,11 @@ type process struct {
 	Err     io.ReadCloser
 }
 
-func NewProcess(task *Task) *process {
-	process := process{name: task.Name}
+func NewProcess(name, target string, params []string) *process {
+	process := process{}
 
-	process.name = task.Name
-	process.cmd = exec.Command(task.Exec, task.Params...)
+	process.name = name
+	process.cmd = exec.Command(target, params...)
 	process.linkStd()
 
 	return &process
@@ -43,21 +43,21 @@ func (t *process) Start(started chan<- error) {
 		count += 1
 
 		if count > UNIT_START_TIMEOUT {
-			panic(fmt.Sprintf("[%s] UNIT: Timedout(%d) waiting for process to start", t.name, UNIT_START_TIMEOUT))
+			panic(fmt.Sprintf("[%s] PROCESS: Timedout(%d) waiting for process to start", t.name, UNIT_START_TIMEOUT))
 		}
 	}
 
 	t.Created = time.Now()
 	close(started)
 
-	log.Printf("[%s] UNIT PID: %d", t.name, t.GetPid())
+	log.Printf("[%s] PROCESS PID: %d", t.name, t.GetPid())
 
 	t.wait()
 }
 
 func (t process) Stop(done chan<- error) {
 	if t.Finished() {
-		log.Printf("[%s] UNIT: Not Running", t.name)
+		log.Printf("[%s] PROCESS: Not Running", t.name)
 	} else {
 		// 5 seconds given to end process, or kill it
 		select {
@@ -101,15 +101,15 @@ func (t process) wait() {
 	}()
 
 	if err := <-stopped; err != nil {
-		log.Printf("[%s] UNIT: Finished with message: %s", t.name, err)
+		log.Printf("[%s] PROCESS: Finished with message: %s", t.name, err)
 	} else {
-		log.Printf("[%s] UNIT: Exited", t.name)
+		log.Printf("[%s] PROCESS: Finished", t.name)
 	}
 }
 
 func (t process) kill() error {
 	if t.Finished() {
-		log.Printf("[%s] UNIT: Not Running", t.name)
+		log.Printf("[%s] PROCESS: Not Running", t.name)
 		return nil
 	}
 
@@ -117,9 +117,9 @@ func (t process) kill() error {
 
 	//if err := t.cmd.process.Signal(syscall.SIGINT); err != nil {
 	if err := t.cmd.Process.Kill(); err != nil {
-		killErr = fmt.Sprintf("[%s] UNIT: Failed to kill PID [%d]: %s", t.name, t.GetPid(), err)
+		killErr = fmt.Sprintf("[%s] PROCESS: Failed to kill PID [%d]: %s", t.name, t.GetPid(), err)
 	} else {
-		killErr = fmt.Sprintf("[%s] UNIT: Killed by timeout", t.name)
+		killErr = fmt.Sprintf("[%s] PROCESS: Killed by timeout", t.name)
 	}
 
 	return errors.New(killErr)

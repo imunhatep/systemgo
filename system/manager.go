@@ -3,6 +3,7 @@ package system
 import (
 	"log"
 	"reflect"
+	"fmt"
 )
 
 type Manager struct {
@@ -21,11 +22,6 @@ func (t *Manager) Run(tasks *[]Task) {
 		log.Fatal("PM already started")
 	}
 
-	log.Println("Starting PM with:")
-	for _, task := range *tasks {
-		log.Printf("Name: %s\nExec: %s\nParams: %s\nRestart: %s", task.Name, task.Exec, task.Params, task.Restart)
-	}
-
 	t.isStopped = false
 	t.isRunning = true
 
@@ -36,11 +32,23 @@ func (t *Manager) Run(tasks *[]Task) {
 	t.OutPipe = make(chan string, bufSize)
 	t.ErrPipe = make(chan string, bufSize)
 
+	log.Println("Starting PM with:")
+
+	var taskPipes []chan error
+
 	for _, task := range *t.taskList {
-		started := make(chan error)
-		go task.Run(started, t.OutPipe, t.ErrPipe)
-		<-started
+		fmt.Printf("Name: %s\nExec: %s\nParams: %s\nRestart: %d\n", task.Name, task.Exec, task.Params, task.Restart)
+
+		done := make(chan error, 1)
+		taskPipes = append(taskPipes, done)
+
+		go task.Run(done, t.OutPipe, t.ErrPipe)
 	}
+
+	go t.listenStd()
+
+	log.Println("Waiting tasks to finish")
+	t.waitFor(taskPipes)
 }
 
 func (t *Manager) Stop() {
@@ -60,7 +68,13 @@ func (t *Manager) Stop() {
 		task.Stop(done)
 	}
 
-	log.Println("Validating STOPPED tasks")
+	log.Println("Waiting tasks to exit")
+	t.waitFor(tasks)
+
+	t.isRunning = false
+}
+
+func (t Manager) waitFor(tasks []chan error){
 	cases := make([]reflect.SelectCase, len(tasks))
 	for i, ch := range tasks {
 		cases[i] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(ch)}
@@ -78,6 +92,19 @@ func (t *Manager) Stop() {
 		cases[chosen].Chan = reflect.ValueOf(nil)
 		remaining -= 1
 	}
+}
 
-	t.isRunning = false
+func (t Manager) listenStd() {
+	//tick := time.Tick(100 * time.Millisecond)
+
+	for {
+		select {
+		case mem := <-t.MemPipe:
+			log.Println(mem)
+		case out := <-t.OutPipe:
+			log.Println(out)
+		case err := <-t.ErrPipe:
+			log.Println(err)
+		}
+	}
 }

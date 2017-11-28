@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"io/ioutil"
-	"log"
 	"github.com/imunhatep/systemg/system"
 	"os"
 	"os/signal"
@@ -13,16 +12,13 @@ import (
 
 func main() {
 	taskMng := system.Manager{}
-	taskMng.Run(readConfig("./systemg.json"))
-
-	go showStatus(taskMng.MemPipe, taskMng.OutPipe, taskMng.ErrPipe)
+	go taskMng.Run(readConfig("./systemg.json"))
 
 	sigChan := make(chan bool)
 	handleSig(sigChan)
 	<-sigChan
 
 	fmt.Println("exiting")
-
 
 	taskMng.Stop()
 }
@@ -39,21 +35,6 @@ func handleSig(sigChan chan<- bool) {
 	}()
 
 	fmt.Println("awaiting signal")
-}
-
-func showStatus(memout, stdout, stderr <-chan string) {
-	//tick := time.Tick(100 * time.Millisecond)
-
-	for {
-		select {
-		case mem := <-memout:
-			log.Println(mem)
-		case out := <-stdout:
-			log.Println(out)
-		case err := <-stderr:
-			log.Println(err)
-		}
-	}
 }
 
 func readConfig(path string) *[]system.Task {

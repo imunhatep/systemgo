@@ -28,7 +28,8 @@ func (t Task) IsRunning() bool {
 }
 
 func (t Task) IsFinished() bool {
-	return len(t.history) > 0 && ( t.running == nil || t.running.Finished() )
+	// no running process, but have history, or process have exited
+	return ( len(t.history) > 0 && t.running == nil) || ( t.running != nil && t.running.Finished() )
 }
 
 func (t Task) GetUsedMemory(memout chan<- string) {
@@ -46,43 +47,45 @@ func (t Task) GetUsedMemory(memout chan<- string) {
 	memout <- fmt.Sprintf("[%s] TASK PID[%d] memory usage: %d bytes", t.Name, t.running.GetPid(), mem)
 }
 
-func (t *Task) Run(started chan<- error, out, err chan<- string) {
-
+func (t *Task) Run(finished chan<- error, out, err chan<- string) {
 	if t.isStarted {
-		log.Println("Task is running")
+		log.Printf("[%s] Task already started", t.Name)
 		return
 	}
 
 	t.isStopped = false
 	t.isStarted = true
 
-	for {
-		log.Println(t.Name, "\nnew: ", t.IsNew(), "\nfin: ", t.IsFinished(), "\nrun: ", t.IsRunning())
+	for !t.isStopped {
+		log.Printf("\n%s \nnew: %d, fin: %d, run: %d\n\n", t.Name, t.IsNew(), t.IsFinished(), t.IsRunning())
 
 		// do not start process if Task is stopped
-		if t.IsNew() && !t.isStopped {
+		if t.IsNew() {
 			log.Printf("[%s] process creating..", t.Name)
-			t.execProcess(started, out, err)
+			t.running = t.execProcess(out, err)
 		} else if t.IsFinished() {
-			t.history = append(t.history, t.running)
-			t.running = nil
+			if t.running != nil {
+				t.history = append(t.history, t.running)
+				t.running = nil
+			}
 
 			// do not re-start process if Task is stopped
-			if t.Restart && t.isStopped {
+			if t.Restart {
 				log.Printf("[%s] process restarting..", t.Name)
-
-				started := make(chan error)
-				t.execProcess(started, out, err)
-				<-started
+				t.running = t.execProcess(out, err)
 			}
+
+			log.Printf("[%s] history count: %d", t.Name, len(t.history))
 		} else if t.IsRunning() {
-			log.Printf("[%s] process is running", t.running.GetName())
+			log.Printf("[%s][%d] process is running", t.running.GetName(), t.running.GetPid())
 		} else {
 			log.Printf("[%s] nothing to do, stopped: %s", t.running.GetName(), t.isStopped)
 		}
 
 		time.Sleep(time.Second)
 	}
+
+	close(finished)
 }
 
 func (t *Task) Stop(done chan<- error) {
@@ -109,17 +112,17 @@ func (t *Task) Stop(done chan<- error) {
 	t.isStarted = false
 }
 
-func (t *Task) execProcess(done chan<- error, out, err chan<- string) {
-	t.running = NewProcess(t)
+func (t Task) execProcess(out, err chan<- string) *process {
+	running := NewProcess(t.Name, t.Exec, t.Params)
 
 	started := make(chan error)
-	go t.running.Start(started)
+	go running.Start(started)
 	<-started
 
-	t.scanProcessStd(t.Name, t.running.Out, out)
-	t.scanProcessStd(t.Name, t.running.Err, err)
+	t.scanProcessStd(t.Name, running.Out, out)
+	t.scanProcessStd(t.Name, running.Err, err)
 
-	close(done)
+	return running
 }
 
 func (t Task) scanProcessStd(name string, pipe io.ReadCloser, out chan<- string) {
@@ -128,7 +131,7 @@ func (t Task) scanProcessStd(name string, pipe io.ReadCloser, out chan<- string)
 	go func() {
 		for outScanner.Scan() {
 			logs := outScanner.Text()
-			out <- fmt.Sprintf("[%s] %s", name, logs)
+			out <- fmt.Sprintf("[%s][STD] %s", name, logs)
 		}
 	}()
 }
