@@ -71,7 +71,7 @@ func (t process) Stop() error {
 	} else {
 		log.Printf("[PROCESS][%s] Killing..", t.name)
 
-		// 5 seconds given to end process, or kill it
+		// 3 seconds given to end process, or kill it
 		select {
 		case <-time.After(3 * time.Second):
 			return t.kill()
@@ -105,7 +105,7 @@ func (t process) GetCmd() *exec.Cmd {
 	return t.cmd
 }
 
-func (t process) wait() {
+func (t *process) wait() {
 	var stopped = make(chan error)
 
 	go func() { stopped <- t.cmd.Wait() }()
@@ -115,9 +115,11 @@ func (t process) wait() {
 	} else {
 		log.Printf("[PROCESS][%s] Finished", t.name)
 	}
+
+	t.Stopped = time.Now()
 }
 
-func (t process) kill() error {
+func (t *process) kill() error {
 	if t.Finished() {
 		log.Printf("[PROCESS][%s] Nothing to kill", t.name)
 		return nil
@@ -130,6 +132,7 @@ func (t process) kill() error {
 		killErr = fmt.Sprintf("[PROCESS][%s] Failed to kill PID [%d]: %s", t.name, t.GetPid(), err)
 	} else {
 		killErr = fmt.Sprintf("[PROCESS][%s] Killed by timeout", t.name)
+		t.Stopped = time.Now()
 	}
 
 	return errors.New(killErr)

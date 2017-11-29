@@ -60,7 +60,6 @@ func (t *Task) Run(exit chan bool, out, err chan<- string) {
 	for !t.isStopped {
 		select {
 		case <-exit:
-			t.isStopped = true
 			t.stopProcess()
 			return
 		case <-time.After(time.Second):
@@ -111,12 +110,11 @@ func (t *Task) handleProcess(out, err chan<- string) {
 		}
 
 		// nothing to do?!
-		time.Sleep(4 * time.Second)
+		time.Sleep(3 * time.Second)
 	}
 
 	if t.IsRunning() {
 		//log.Printf("[TASK][%s][%d] running with stopped?: %d", t.running.GetName(), t.running.GetPid(), t.isStopped)
-		return
 	}
 }
 
@@ -140,7 +138,7 @@ func (t Task) scanProcessStd(name string, pipe *io.ReadCloser, out chan<- string
 	outScanner := bufio.NewScanner(*pipe)
 
 	go func() {
-		for outScanner.Scan() {
+		for t.IsRunning() && outScanner.Scan() {
 			logs := outScanner.Text()
 			out <- fmt.Sprintf("[%s] %s", name, logs)
 		}
