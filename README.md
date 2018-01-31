@@ -1,5 +1,5 @@
-Process manager (systemG).
-======
+SystemG is a simple task runner, with configurable jobs with JSON
+----
 
 Requires go lang env for compiling.
 
@@ -18,14 +18,7 @@ JSON configuration example:
 [
   {"name": "php1", "exec": "/usr/bin/php", "params": ["./gen.php", "-m=0", "-x=20"], "restart": true},
   {"name": "php2", "exec": "/usr/bin/php", "params": ["./gen.php", "-m=50", "-x=60"]},
-  {"name": "php3", "exec": "/usr/bin/php", "params": ["./gen.php", "-m=50", "-x=60"]},
-  {"name": "php4", "exec": "/usr/bin/php", "params": ["./gen.php", "-m=50", "-x=60"]},
-  {"name": "php5", "exec": "/usr/bin/php", "params": ["./gen.php", "-m=50", "-x=60"]},
-  {"name": "php6", "exec": "/usr/bin/php", "params": ["./gen.php", "-m=50", "-x=60"]},
-  {"name": "php7", "exec": "/usr/bin/php", "params": ["./gen.php", "-m=50", "-x=60"]},
-  {"name": "php8", "exec": "/usr/bin/php", "params": ["./gen.php", "-m=50", "-x=60"]},
-  {"name": "php9", "exec": "/usr/bin/php", "params": ["./gen.php", "-m=50", "-x=60"]},
-  {"name": "php10", "exec": "/usr/bin/php", "params": ["./gen.php", "-m=50", "-x=60"]}
+  {"name": "js1", "exec": "/usr/bin/node", "params": ["./gen.js", "-m=50", "-x=60"]}
 ]
 ```
 

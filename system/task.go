@@ -91,7 +91,7 @@ func (t Task) createProcess(out, err chan<- string) *process {
 
 func (t *Task) handleProcess(out, err chan<- string) {
 	if t.IsNew() {
-		log.Printf("[TASK][%s] creating", t.Name)
+		log.Printf("[TASK][%s] creating running-process", t.Name)
 		t.running = t.createProcess(out, err)
 
 		return
