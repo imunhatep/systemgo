@@ -23,3 +23,14 @@ JSON configuration example:
 ```
 
 CTRL+C to exit process manager.
+
+
+#### TODO
+ - task timeout
+ - periodical executor with timer
+ - run only once (even if systemg process was terminated)
+ - improve logging
+ - hot configuration reload
+ - task statuses & statistics
+ 
+  
