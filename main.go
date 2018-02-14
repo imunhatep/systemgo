@@ -41,13 +41,13 @@ func handleSig(sigChan chan<- bool) {
 	fmt.Println("awaiting signal")
 }
 
-func readConfig(path string) []system.Task {
+func readConfig(path string) []system.Service {
 	dat, err := ioutil.ReadFile(path)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	var tasks []system.Task
+	var tasks []system.Service
 	if err = json.Unmarshal(dat, &tasks); err != nil {
 		log.Fatal(err)
 	}

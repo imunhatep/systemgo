@@ -40,99 +40,99 @@ func NewProcess(name, target string, params []string) *process {
 	return process
 }
 
-func (t *process) Start(started chan<- error) {
-	log.Printf("[PROCESS][%s] Starting...", t.name)
+func (p *process) Start(started chan<- error) {
+	log.Printf("[P][%s] Starting...", p.name)
 
-	if err := t.cmd.Start(); err != nil {
+	if err := p.cmd.Start(); err != nil {
 		log.Fatal(err)
 	}
 
 	var count int
-	for t.cmd.Process == nil {
+	for p.cmd.Process == nil {
 		time.Sleep(time.Second * 1)
 		count += 1
 
 		if count > UNIT_START_TIMEOUT {
-			panic(fmt.Sprintf("[PROCESS][%s] Timedout(%d) waiting for process to start", t.name, UNIT_START_TIMEOUT))
+			panic(fmt.Sprintf("[P][%s] Timedout(%d) waiting for process to start", p.name, UNIT_START_TIMEOUT))
 		}
 	}
 
-	t.Created = time.Now()
+	p.Created = time.Now()
 	close(started)
 
-	log.Printf("[PROCESS][%s] PID: %d", t.name, t.GetPid())
+	log.Printf("[P][%s] PID: %d", p.name, p.GetPid())
 
-	t.wait()
+	p.wait()
 }
 
-func (t process) Stop() error {
-	if t.Finished() && !t.Running() {
-		log.Printf("[PROCESS][%s] Not Running", t.name)
+func (p process) Stop() error {
+	if p.Finished() && !p.Running() {
+		log.Printf("[P][%s] Not Running", p.name)
 	} else {
-		log.Printf("[PROCESS][%s] Killing..", t.name)
+		log.Printf("[P][%s] Killing..", p.name)
 
 		// 3 seconds given to end process, or kill it
 		select {
 		case <-time.After(3 * time.Second):
-			return t.kill()
+			return p.kill()
 		}
 	}
 
 	return nil
 }
 
-func (t process) Running() bool {
-	return t.cmd != nil && t.cmd.Process != nil && t.cmd.ProcessState == nil
+func (p process) Running() bool {
+	return p.cmd != nil && p.cmd.Process != nil && p.cmd.ProcessState == nil
 }
 
-func (t process) Finished() bool {
-	return t.cmd == nil || t.cmd.ProcessState != nil
+func (p process) Finished() bool {
+	return p.cmd == nil || p.cmd.ProcessState != nil
 }
 
-func (t process) GetName() string {
-	return t.name
+func (p process) GetName() string {
+	return p.name
 }
 
-func (t process) GetPid() int {
-	return t.GetCmd().Process.Pid
+func (p process) GetPid() int {
+	return p.GetCmd().Process.Pid
 }
 
-func (t process) GetCmd() *exec.Cmd {
-	if !t.Running() {
+func (p process) GetCmd() *exec.Cmd {
+	if !p.Running() {
 		panic("Error in getting Command, exec is empty")
 	}
 
-	return t.cmd
+	return p.cmd
 }
 
-func (t *process) wait() {
+func (p *process) wait() {
 	var stopped = make(chan error)
 
-	go func() { stopped <- t.cmd.Wait() }()
+	go func() { stopped <- p.cmd.Wait() }()
 
 	if err := <-stopped; err != nil {
-		log.Printf("[PROCESS][%s] Finished with message: %s", t.name, err)
+		log.Printf("[P][%s] Finished with message: %s", p.name, err)
 	} else {
-		log.Printf("[PROCESS][%s] Finished", t.name)
+		log.Printf("[P][%s] Finished", p.name)
 	}
 
-	t.Stopped = time.Now()
+	p.Stopped = time.Now()
 }
 
-func (t *process) kill() error {
-	if t.Finished() {
-		log.Printf("[PROCESS][%s] Nothing to kill", t.name)
+func (p *process) kill() error {
+	if p.Finished() {
+		log.Printf("[P][%s] Nothing to kill", p.name)
 		return nil
 	}
 
 	var killErr string
 
-	//if err := t.cmd.Process.Signal(syscall.SIGINT); err != nil {
-	if err := t.cmd.Process.Kill(); err != nil {
-		killErr = fmt.Sprintf("[PROCESS][%s] Failed to kill PID [%d]: %s", t.name, t.GetPid(), err)
+	//if err := m.cmd.Process.Signal(syscall.SIGINT); err != nil {
+	if err := p.cmd.Process.Kill(); err != nil {
+		killErr = fmt.Sprintf("[P][%s] Failed to kill PID [%d]: %s", p.name, p.GetPid(), err)
 	} else {
-		killErr = fmt.Sprintf("[PROCESS][%s] Killed by timeout", t.name)
-		t.Stopped = time.Now()
+		killErr = fmt.Sprintf("[P][%s] Killed by timeout", p.name)
+		p.Stopped = time.Now()
 	}
 
 	return errors.New(killErr)

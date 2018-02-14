@@ -8,9 +8,8 @@ import (
 )
 
 type Manager struct {
-	taskList *[]Task
+	taskList *[]Service
 
-	MemPipe chan string
 	OutPipe chan string
 	ErrPipe chan string
 
@@ -20,56 +19,55 @@ type Manager struct {
 	isStopped bool
 }
 
-func (t *Manager) Run(tasks []Task) {
-	if t.isRunning || t.isStopped {
-		log.Fatal("[MANAGER] PM already started")
+func (m *Manager) Run(services []Service) {
+	if m.isRunning || m.isStopped {
+		log.Fatal("[M] PM already started")
 	}
 
-	t.isStopped = false
-	t.isRunning = true
+	m.isStopped = false
+	m.isRunning = true
 
-	t.taskList = &tasks
+	m.taskList = &services
 
-	bufSize := len(*t.taskList)
-	log.Printf("[MANAGER] Buf size: %d", bufSize)
+	bufSize := len(*m.taskList)
+	log.Printf("[M] Buf size: %d", bufSize)
 
-	t.exit = make(chan bool, bufSize)
-	t.MemPipe = make(chan string, bufSize)
-	t.OutPipe = make(chan string, bufSize)
-	t.ErrPipe = make(chan string, bufSize)
+	m.exit = make(chan bool, bufSize)
+	m.OutPipe = make(chan string, bufSize)
+	m.ErrPipe = make(chan string, bufSize)
 
-	log.Println("[MANAGER] Starting TASKS")
+	log.Println("[M] Starting services")
 
-	for i := range *t.taskList {
-		task := (*t.taskList)[i]
+	for i := range *m.taskList {
+		task := (*m.taskList)[i]
 
-		//log.Printf("[MANAGER] \nName: %s\nExec: %s\nParams: %s\nRestart: %d\n\n", task.Name, task.Exec, task.Params, task.Restart)
-		go task.Run(t.exit, t.OutPipe, t.ErrPipe)
+		//log.Printf("[M] \nName: %s\nExec: %s\nParams: %s\nRestart: %d\n\n", task.Name, task.Exec, task.Params, task.Restart)
+		go task.Run(m.exit, m.OutPipe, m.ErrPipe)
 	}
 
-	t.listenStd()
+	m.listenStd()
 }
 
-func (t *Manager) Stop() {
-	if !t.isRunning {
-		log.Fatal("[MANAGER] ProcessManager not started")
+func (m *Manager) Stop() {
+	if !m.isRunning {
+		log.Fatal("[M] ProcessManager not started")
 	}
-	t.isStopped = true
+	m.isStopped = true
 
-	log.Println("[MANAGER] Sending stop signal to tasks")
-	for range *t.taskList {
-		t.exit <- true
+	log.Println("[M] Sending stop signal to tasks")
+	for range *m.taskList {
+		m.exit <- true
 	}
 
-	log.Println("[MANAGER] Waiting tasks to exit")
+	log.Println("[M] Waiting tasks to exit")
 
-	counter := len(*t.taskList)
+	counter := len(*m.taskList)
 	fullStop := false
 	for !fullStop && counter > 0 {
 		counter -= 1
 		fullStop = true
 
-		for _, task := range *t.taskList {
+		for _, task := range *m.taskList {
 			fullStop = fullStop && !task.IsRunning()
 			if task.IsRunning() {
 				log.Println("Waiting", task.Name)
@@ -79,10 +77,10 @@ func (t *Manager) Stop() {
 		time.Sleep(1 * time.Second)
 	}
 
-	t.isRunning = false
+	m.isRunning = false
 }
 
-func (t Manager) waitFor(tasks []chan error) {
+func (m Manager) waitFor(tasks []chan error) {
 	cases := make([]reflect.SelectCase, len(tasks))
 	for i, ch := range tasks {
 		cases[i] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(ch)}
@@ -92,7 +90,7 @@ func (t Manager) waitFor(tasks []chan error) {
 	for remaining > 0 {
 		chosen, value, ok := reflect.Select(cases)
 		if !ok {
-			log.Printf("[MANAGER] Read from channel %#v and received %s\n", tasks[chosen], value)
+			log.Printf("[M] Read from channel %#v and received %s\n", tasks[chosen], value)
 			continue
 		}
 
@@ -102,16 +100,12 @@ func (t Manager) waitFor(tasks []chan error) {
 	}
 }
 
-func (t Manager) listenStd() {
-	//tick := time.Tick(100 * time.Millisecond)
-
+func (m Manager) listenStd() {
 	for {
 		select {
-		case mem := <-t.MemPipe:
-			fmt.Println(mem)
-		case out := <-t.OutPipe:
+		case out := <-m.OutPipe:
 			fmt.Println(out)
-		case err := <-t.ErrPipe:
+		case err := <-m.ErrPipe:
 			fmt.Println(err)
 		}
 	}
