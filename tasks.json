@@ -1,0 +1,6 @@
+[
+  {"name": "php1", "exec": "/usr/bin/php", "params": ["./gen.php", "-m=0", "-x=10"], "restart": true},
+  {"name": "php2", "exec": "/usr/bin/php", "params": ["./gen.php", "-m=45", "-x=55"]},
+  {"name": "node1", "exec": "/usr/bin/node", "params": ["./gen.js", "-m=0", "-x=10"], "restart": true},
+  {"name": "node2", "exec": "/usr/bin/node", "params": ["./gen.js", "-m=45", "-x=55"]}
+]

@@ -2,21 +2,22 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
+	"github.com/imunhatep/systemgo/system"
 	"io/ioutil"
-	"github.com/imunhatep/systemg/system"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"fmt"
 	"runtime"
-	"log"
 )
 
 func main() {
-	runtime.GOMAXPROCS(2)
+	runtime.GOMAXPROCS(*flag.Int("j", 2, "GOMAXPROCS"))
 
 	taskMng := &system.Manager{}
-	go taskMng.Run(readConfig("./systemg.json"))
+	go taskMng.Run(readConfig(*flag.String("f", "tasks.json", "JSON file with defined tasks")))
 
 	sigChan := make(chan bool)
 	handleSig(sigChan)

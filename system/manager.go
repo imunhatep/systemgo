@@ -8,7 +8,7 @@ import (
 )
 
 type Manager struct {
-	taskList *[]Service
+	serviceList *[]Service
 
 	OutPipe chan string
 	ErrPipe chan string
@@ -27,9 +27,9 @@ func (m *Manager) Run(services []Service) {
 	m.isStopped = false
 	m.isRunning = true
 
-	m.taskList = &services
+	m.serviceList = &services
 
-	bufSize := len(*m.taskList)
+	bufSize := len(*m.serviceList)
 	log.Printf("[M] Buf size: %d", bufSize)
 
 	m.exit = make(chan bool, bufSize)
@@ -38,11 +38,11 @@ func (m *Manager) Run(services []Service) {
 
 	log.Println("[M] Starting services")
 
-	for i := range *m.taskList {
-		task := (*m.taskList)[i]
+	for i := range *m.serviceList {
+		service := (*m.serviceList)[i]
 
-		//log.Printf("[M] \nName: %s\nExec: %s\nParams: %s\nRestart: %d\n\n", task.Name, task.Exec, task.Params, task.Restart)
-		go task.Run(m.exit, m.OutPipe, m.ErrPipe)
+		//log.Printf("[M] \nName: %s\nExec: %s\nParams: %s\nRestart: %d\n\n", service.Name, service.Exec, service.Params, service.Restart)
+		go service.Run(m.exit, m.OutPipe, m.ErrPipe)
 	}
 
 	m.listenStd()
@@ -55,22 +55,22 @@ func (m *Manager) Stop() {
 	m.isStopped = true
 
 	log.Println("[M] Sending stop signal to tasks")
-	for range *m.taskList {
+	for range *m.serviceList {
 		m.exit <- true
 	}
 
 	log.Println("[M] Waiting tasks to exit")
 
-	counter := len(*m.taskList)
+	counter := len(*m.serviceList)
 	fullStop := false
 	for !fullStop && counter > 0 {
 		counter -= 1
 		fullStop = true
 
-		for _, task := range *m.taskList {
-			fullStop = fullStop && !task.IsRunning()
-			if task.IsRunning() {
-				log.Println("Waiting", task.Name)
+		for _, service := range *m.serviceList {
+			fullStop = fullStop && !service.IsRunning()
+			if service.IsRunning() {
+				log.Println("Waiting", service.Name)
 			}
 		}
 

@@ -84,15 +84,18 @@ func (s Service) createProcess(out, err chan<- string) *process {
 	return running
 }
 
+func (s *Service) startProcess(out, err chan<- string) {
+	s.running = s.createProcess(out, err)
+
+	// listen for STD
+	s.scanProcessStd(s.Name, &s.running.Out, out)
+	s.scanProcessStd(s.Name, &s.running.Err, err)
+}
+
 func (s *Service) handleProcess(out, err chan<- string) {
 	if s.IsNew() {
 		log.Printf("[S][%s] creating new process", s.Name)
-		s.running = s.createProcess(out, err)
-
-		// listen for STD
-		s.scanProcessStd(s.Name, &s.running.Out, out)
-		s.scanProcessStd(s.Name, &s.running.Err, err)
-
+		s.startProcess(out, err)
 		return
 	}
 
@@ -104,7 +107,8 @@ func (s *Service) handleProcess(out, err chan<- string) {
 
 		if s.Restart {
 			log.Printf("[S][%s] restarting", s.Name)
-			s.running = s.createProcess(out, err)
+			s.startProcess(out, err)
+
 			return
 		}
 

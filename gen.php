@@ -3,7 +3,7 @@
 class TimeRunner
 {
     private $callable;
-    private $stop;
+    private $running;
     private $results;
 
     function __construct(\Generator $runner)
@@ -14,33 +14,24 @@ class TimeRunner
 
     function start()
     {
-        $this->stop = false;
+        $this->running = true;
 
-        while (!$this->stop and $this->callable->valid()) {
+        while ($this->running and $this->callable->valid()) {
             /** @var \Generator $round */
             $round = $this->tick();
 
             foreach ($round as $value) {
-                $this->results[] = $value;
+                error_log(sprintf("%s\n", $value));
 
                 fwrite(STDOUT, $value . "\n");
                 //fwrite(STDERR, $value. "\n");
-
-				error_log(sprintf("[%s] Running: %s\n", date("H:i:s"), $value), 3, "/tmp/gen.log");
             }
         }
     }
 
     function stop()
     {
-        $this->stop = true;
-    }
-
-    function flush(): array
-    {
-        $results = $this->results and $this->results = [];
-
-        return $results;
+        $this->running = false;
     }
 
     protected function tick(): \Generator
