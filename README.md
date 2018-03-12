@@ -10,16 +10,18 @@ Features:
  - semi-gracefull process closing
 
 ```bash
-go run main.go
+go run main.go -j=2 -f=tasks.json
 ```
 
 JSON configuration example:
 ```json
 [
-  {"name": "php1", "exec": "/usr/bin/php", "params": ["./gen.php", "-m=0", "-x=20"], "restart": true},
-  {"name": "php2", "exec": "/usr/bin/php", "params": ["./gen.php", "-m=50", "-x=60"]},
-  {"name": "js1", "exec": "/usr/bin/node", "params": ["./gen.js", "-m=50", "-x=60"]}
+  {"name": "php1", "exec": "/usr/bin/php", "params": ["./gen.php", "-m=0", "-x=10"], "restart": true},
+  {"name": "php2", "exec": "/usr/bin/php", "params": ["./gen.php", "-m=45", "-x=55"]},
+  {"name": "node1", "exec": "/usr/bin/node", "params": ["./gen.js", "-m=0", "-x=10"], "restart": true},
+  {"name": "node2", "exec": "/usr/bin/node", "params": ["./gen.js", "-m=45", "-x=55"]}
 ]
+
 ```
 
 CTRL+C to exit process manager.
@@ -32,5 +34,3 @@ CTRL+C to exit process manager.
  - improve logging
  - hot configuration reload
  - task statuses & statistics
- 
-  
