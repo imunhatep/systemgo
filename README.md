@@ -1,4 +1,4 @@
-SystemG is a simple task runner, with configurable jobs with JSON
+SystemGo is a simple task runner, with configurable jobs with JSON
 ----
 
 Requires go lang env for compiling.
@@ -34,3 +34,5 @@ CTRL+C to exit process manager.
  - improve logging
  - hot configuration reload
  - task statuses & statistics
+ - memory limits
+ - web interface (monitoring, stats)
