@@ -67,7 +67,7 @@ func (p *process) Start(started chan<- error) {
 
 func (p process) Stop() error {
 	if p.Finished() && !p.Running() {
-		log.Printf("[P][%s] Not Running", p.name)
+		log.Printf("[P][%s] Not running", p.name)
 	} else {
 		log.Printf("[P][%s] Killing..", p.name)
 
