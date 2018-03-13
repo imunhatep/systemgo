@@ -41,7 +41,7 @@ func NewProcess(name, target string, params []string) *process {
 }
 
 func (p *process) Start(started chan<- error) {
-	log.Printf("[P][%s] Starting...", p.name)
+	log.Printf("[P][%s] starting...", p.name)
 
 	if err := p.cmd.Start(); err != nil {
 		log.Fatal(err)
@@ -53,7 +53,7 @@ func (p *process) Start(started chan<- error) {
 		count += 1
 
 		if count > UNIT_START_TIMEOUT {
-			panic(fmt.Sprintf("[P][%s] Timedout(%d) waiting for process to start", p.name, UNIT_START_TIMEOUT))
+			panic(fmt.Sprintf("[P][%s] timedout(%d) waiting for process to start", p.name, UNIT_START_TIMEOUT))
 		}
 	}
 
@@ -67,12 +67,17 @@ func (p *process) Start(started chan<- error) {
 
 func (p process) Stop() error {
 	if p.Finished() && !p.Running() {
-		log.Printf("[P][%s] Not running", p.name)
+		log.Printf("[P][%s] not running", p.name)
 	} else {
-		log.Printf("[P][%s] Killing..", p.name)
+		log.Printf("[P][%s] killing..", p.name)
+
+		var stopped = make(chan error)
+		go func() { stopped <- p.cmd.Wait() }()
 
 		// 10 seconds given to end process, or kill it
 		select {
+		case <-stopped:
+			return nil
 		case <-time.After(UNIT_START_TIMEOUT * time.Second):
 			return p.kill()
 		}
@@ -107,13 +112,12 @@ func (p process) GetCmd() *exec.Cmd {
 
 func (p *process) wait() {
 	var stopped = make(chan error)
-
 	go func() { stopped <- p.cmd.Wait() }()
 
 	if err := <-stopped; err != nil {
-		log.Printf("[P][%s] Finished with message: %s", p.name, err)
+		log.Printf("[P][%s] finished with message: %s", p.name, err)
 	} else {
-		log.Printf("[P][%s] Finished", p.name)
+		log.Printf("[P][%s] finished", p.name)
 	}
 
 	p.Stopped = time.Now()
@@ -121,7 +125,7 @@ func (p *process) wait() {
 
 func (p *process) kill() error {
 	if p.Finished() {
-		log.Printf("[P][%s] Nothing to kill", p.name)
+		log.Printf("[P][%s] nothing to kill", p.name)
 		return nil
 	}
 
@@ -129,9 +133,9 @@ func (p *process) kill() error {
 
 	//if err := m.cmd.Process.Signal(syscall.SIGINT); err != nil {
 	if err := p.cmd.Process.Kill(); err != nil {
-		killErr = fmt.Sprintf("[P][%s] Failed to kill PID [%d]: %s", p.name, p.GetPid(), err)
+		killErr = fmt.Sprintf("[P][%s] failed to kill PID [%d]: %s", p.name, p.GetPid(), err)
 	} else {
-		killErr = fmt.Sprintf("[P][%s] Killed by timeout", p.name)
+		killErr = fmt.Sprintf("[P][%s] killed by timeout", p.name)
 		p.Stopped = time.Now()
 	}
 

@@ -21,10 +21,8 @@ function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms))
 }
 
-
 const min = parseInt(options.has('m') ? options.get('m') : 0)
 const max = parseInt(options.has('x') ? options.get('x') : 60)
-
 
 const range = (m, x) => [...Array(x).keys()].slice(m)
 
@@ -35,4 +33,3 @@ range(min, max).forEach(
         )
     }
 )
-

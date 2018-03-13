@@ -44,6 +44,10 @@ class TimeRunner
 function counter(int $min, int $max): \Generator
 {
     for ($i = $min; $i < $max; $i++) {
+        if($i == 9){
+            throw new \Exception('Test exception');
+        }
+
         yield $i;
     }
 }

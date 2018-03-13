@@ -1,6 +1,6 @@
 [
-  {"name": "php1", "exec": "/usr/bin/php", "params": ["./gen.php", "-m=0", "-x=5"], "restart": true },
-  {"name": "php2", "exec": "/usr/bin/php", "params": ["./gen.php", "-m=45", "-x=55"]},
-  {"name": "node1", "exec": "/usr/bin/node", "params": ["./gen.js", "-m=10", "-x=15"], "restart": true },
+  {"name": "php1", "exec": "/usr/bin/php", "params": ["./gen.php", "-m=0", "-x=10"] },
+  {"name": "php2", "exec": "/usr/bin/php", "params": ["./gen.php", "-m=10", "-x=20"]},
+  {"name": "node1", "exec": "/usr/bin/node", "params": ["./gen.js", "-m=20", "-x=25"], "restart": true },
   {"name": "node2", "exec": "/usr/bin/node", "params": ["./gen.js", "-m=25", "-x=35"]}
 ]

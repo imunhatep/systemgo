@@ -22,31 +22,39 @@ func main() {
 	serviceMng := system.NewServiceManager(taskList)
 
 	ctx, cancel := context.WithCancel(context.Background())
+
 	var wg sync.WaitGroup
 	wg.Add(1)
 
-	go func() {
-		serviceMng.Run(ctx)
-
-		wg.Done()
-	}()
+	go serviceMng.Run(&wg, ctx)
 
 	sigChan := make(chan bool)
-	handleSig(sigChan)
+	handleSig(&wg, sigChan)
 	<-sigChan
 
 	cancel()
 	wg.Wait()
 }
 
-func handleSig(sigChan chan<- bool) {
+func handleSig(wg *sync.WaitGroup, sigChan chan<- bool) {
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
-		sig := <-sigc
-		fmt.Println()
-		fmt.Println(sig)
+		select {
+		case sig := <-sigc:
+			fmt.Println()
+			fmt.Println(sig)
+		case <-done:
+			fmt.Println("All tasks are finished. Exiting..")
+		}
+
 		sigChan <- true
 	}()
 

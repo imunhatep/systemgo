@@ -5,6 +5,7 @@ import (
 	"log"
 	"fmt"
 	"time"
+	"sync"
 )
 
 type manager struct {
@@ -23,7 +24,7 @@ func NewServiceManager(services []Service) *manager {
 	m.isRunning = false
 
 	bufSize := len(*m.serviceList)
-	log.Printf("[M] Buf size: %d", bufSize)
+	log.Printf("[M] buffer size: %d", bufSize)
 
 	m.outPipe = make(chan string, bufSize)
 	m.errPipe = make(chan string, bufSize)
@@ -31,20 +32,29 @@ func NewServiceManager(services []Service) *manager {
 	return m
 }
 
-func (m *manager) Run(ctx context.Context) {
+func (m *manager) Run(wg *sync.WaitGroup, ctx context.Context) {
 	if m.isRunning {
-		log.Fatal("[M] PM already started")
+		log.Fatal("[M] already running")
 	}
 
 	m.isRunning = true
+	log.Println("[M] starting services")
 
-	log.Println("[M] Starting services")
 	for i := range *m.serviceList {
 		service := (*m.serviceList)[i]
 
-		//log.Printf("[M] \nName: %s\nExec: %s\nParams: %s\nRestart: %d\n\n", service.Name, service.Exec, service.Params, service.Restart)
-		go service.Run(ctx, m.outPipe, m.errPipe)
+		wg.Add(1)
+		go service.Run(wg, ctx, m.outPipe, m.errPipe)
 	}
+
+	finished := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(finished)
+	}()
+
+	// close Manager wait-group, and wait for processes
+	wg.Done()
 
 	for {
 		select {
@@ -52,19 +62,19 @@ func (m *manager) Run(ctx context.Context) {
 			fmt.Println(out)
 		case err := <-m.errPipe:
 			fmt.Println(err)
-		case <-ctx.Done():
-			m.stop()
+		case <-finished:
+			log.Println("[M] finished")
 			return
 		}
 	}
 }
 
-func (m *manager) stop() {
+func (m *manager) wait() {
 	if !m.isRunning {
-		log.Fatal("[M] ProcessManager not started")
+		log.Fatal("[M] not started")
 	}
 
-	log.Println("[M] Waiting services to finish")
+	log.Println("[M] waiting services to finish")
 
 	counter := len(*m.serviceList)
 	fullStop := false
@@ -74,8 +84,9 @@ func (m *manager) stop() {
 
 		for _, service := range *m.serviceList {
 			fullStop = fullStop && !service.IsRunning()
+
 			if service.IsRunning() {
-				log.Println("Waiting", service.Name)
+				log.Println("[M] waiting", service.Name)
 			}
 		}
 
