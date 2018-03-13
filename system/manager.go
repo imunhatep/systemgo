@@ -2,9 +2,8 @@ package system
 
 import (
 	"context"
-	"log"
 	"fmt"
-	"time"
+	"log"
 	"sync"
 )
 
@@ -32,7 +31,7 @@ func NewServiceManager(services []Service) *manager {
 	return m
 }
 
-func (m *manager) Run(wg *sync.WaitGroup, ctx context.Context) {
+func (m *manager) Run(ctx context.Context) {
 	if m.isRunning {
 		log.Fatal("[M] already running")
 	}
@@ -40,11 +39,23 @@ func (m *manager) Run(wg *sync.WaitGroup, ctx context.Context) {
 	m.isRunning = true
 	log.Println("[M] starting services")
 
+	var wg sync.WaitGroup
 	for i := range *m.serviceList {
 		service := (*m.serviceList)[i]
 
 		wg.Add(1)
-		go service.Run(wg, ctx, m.outPipe, m.errPipe)
+		go func(){
+			service.Run(ctx, m.outPipe, m.errPipe)
+			wg.Done()
+		}()
+	}
+
+	m.wait(&wg)
+}
+
+func (m manager) wait(wg *sync.WaitGroup) {
+	if !m.isRunning {
+		log.Fatal("[M] not started")
 	}
 
 	finished := make(chan struct{})
@@ -52,9 +63,6 @@ func (m *manager) Run(wg *sync.WaitGroup, ctx context.Context) {
 		wg.Wait()
 		close(finished)
 	}()
-
-	// close Manager wait-group, and wait for processes
-	wg.Done()
 
 	for {
 		select {
@@ -66,31 +74,6 @@ func (m *manager) Run(wg *sync.WaitGroup, ctx context.Context) {
 			log.Println("[M] finished")
 			return
 		}
-	}
-}
-
-func (m *manager) wait() {
-	if !m.isRunning {
-		log.Fatal("[M] not started")
-	}
-
-	log.Println("[M] waiting services to finish")
-
-	counter := len(*m.serviceList)
-	fullStop := false
-	for !fullStop && counter > 0 {
-		counter -= 1
-		fullStop = true
-
-		for _, service := range *m.serviceList {
-			fullStop = fullStop && !service.IsRunning()
-
-			if service.IsRunning() {
-				log.Println("[M] waiting", service.Name)
-			}
-		}
-
-		time.Sleep(500 * time.Millisecond)
 	}
 
 	m.isRunning = false

@@ -10,9 +10,9 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"syscall"
 	"runtime"
 	"sync"
+	"syscall"
 )
 
 func main() {
@@ -26,7 +26,10 @@ func main() {
 	var wg sync.WaitGroup
 	wg.Add(1)
 
-	go serviceMng.Run(&wg, ctx)
+	go func() {
+		serviceMng.Run(ctx)
+		wg.Done()
+	}()
 
 	sigChan := make(chan bool)
 	handleSig(&wg, sigChan)

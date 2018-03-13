@@ -1,10 +1,10 @@
 package system
 
 import (
-	"os"
-	"fmt"
 	"bufio"
 	"bytes"
+	"fmt"
+	"os"
 )
 
 func memoryUsage(pid int) (uint64, error) {

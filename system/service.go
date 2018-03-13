@@ -4,10 +4,9 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"time"
-	"io"
-	"sync"
 )
 
 type Service struct {
@@ -32,7 +31,7 @@ func (s Service) IsRunning() bool {
 
 func (s Service) IsFinished() bool {
 	// no running process, but have history, or process have exited
-	return ( len(s.history) > 0 && s.running == nil) || ( s.running != nil && s.running.Finished() )
+	return (len(s.history) > 0 && s.running == nil) || (s.running != nil && s.running.Finished())
 }
 
 func (s Service) GetUsedMemory() uint64 {
@@ -48,7 +47,7 @@ func (s Service) GetUsedMemory() uint64 {
 	return mem
 }
 
-func (s *Service) Run(wg *sync.WaitGroup, ctx context.Context, out, err chan<- string) {
+func (s *Service) Run(ctx context.Context, out, err chan<- string) {
 	if s.isStarted {
 		log.Printf("[S][%s] already running", s.Name)
 		return
@@ -68,7 +67,6 @@ func (s *Service) Run(wg *sync.WaitGroup, ctx context.Context, out, err chan<- s
 	}
 
 	log.Printf("[S][%s] finished", s.Name)
-	wg.Done()
 }
 
 func (s *Service) handleProcess(out, err chan<- string) {
@@ -137,7 +135,7 @@ func (s Service) scanProcessStd(format string, src *io.ReadCloser, dst chan<- st
 	go func() {
 		for s.IsRunning() && stdScanner.Scan() {
 			logs := stdScanner.Text()
-			dst <- fmt.Sprintf("[%s] " + format, s.Name, logs)
+			dst <- fmt.Sprintf("[%s] "+format, s.Name, logs)
 		}
 	}()
 }

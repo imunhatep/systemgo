@@ -1,12 +1,12 @@
 package system
 
 import (
-	"os/exec"
-	"time"
+	"errors"
+	"fmt"
 	"io"
 	"log"
-	"fmt"
-	"errors"
+	"os/exec"
+	"time"
 )
 
 const UNIT_START_TIMEOUT = 10
