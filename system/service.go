@@ -14,6 +14,7 @@ type Service struct {
 	Exec      string
 	Params    []string
 	Restart   bool
+	
 	running   *process
 	history   []*process
 	isStarted bool

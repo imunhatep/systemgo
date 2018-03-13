@@ -10,8 +10,8 @@ import (
 type manager struct {
 	serviceList *[]Service
 
-	OutPipe chan string
-	ErrPipe chan string
+	outPipe chan string
+	errPipe chan string
 
 	isRunning bool
 }
@@ -25,8 +25,8 @@ func NewServiceManager(services []Service) *manager {
 	bufSize := len(*m.serviceList)
 	log.Printf("[M] Buf size: %d", bufSize)
 
-	m.OutPipe = make(chan string, bufSize)
-	m.ErrPipe = make(chan string, bufSize)
+	m.outPipe = make(chan string, bufSize)
+	m.errPipe = make(chan string, bufSize)
 
 	return m
 }
@@ -43,14 +43,14 @@ func (m *manager) Run(ctx context.Context) {
 		service := (*m.serviceList)[i]
 
 		//log.Printf("[M] \nName: %s\nExec: %s\nParams: %s\nRestart: %d\n\n", service.Name, service.Exec, service.Params, service.Restart)
-		go service.Run(ctx, m.OutPipe, m.ErrPipe)
+		go service.Run(ctx, m.outPipe, m.errPipe)
 	}
 
 	for {
 		select {
-		case out := <-m.OutPipe:
+		case out := <-m.outPipe:
 			fmt.Println(out)
-		case err := <-m.ErrPipe:
+		case err := <-m.errPipe:
 			fmt.Println(err)
 		case <-ctx.Done():
 			m.stop()
