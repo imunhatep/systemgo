@@ -1,65 +1,70 @@
 package system
 
 import (
+	"context"
 	"log"
-	"reflect"
 	"fmt"
 	"time"
 )
 
-type Manager struct {
+type manager struct {
 	serviceList *[]Service
 
 	OutPipe chan string
 	ErrPipe chan string
 
-	exit chan bool
-
 	isRunning bool
-	isStopped bool
 }
 
-func (m *Manager) Run(services []Service) {
-	if m.isRunning || m.isStopped {
-		log.Fatal("[M] PM already started")
-	}
-
-	m.isStopped = false
-	m.isRunning = true
-
+func NewServiceManager(services []Service) *manager {
+	m := new(manager)
 	m.serviceList = &services
+
+	m.isRunning = false
 
 	bufSize := len(*m.serviceList)
 	log.Printf("[M] Buf size: %d", bufSize)
 
-	m.exit = make(chan bool, bufSize)
 	m.OutPipe = make(chan string, bufSize)
 	m.ErrPipe = make(chan string, bufSize)
 
-	log.Println("[M] Starting services")
+	return m
+}
 
+func (m *manager) Run(ctx context.Context) {
+	if m.isRunning {
+		log.Fatal("[M] PM already started")
+	}
+
+	m.isRunning = true
+
+	log.Println("[M] Starting services")
 	for i := range *m.serviceList {
 		service := (*m.serviceList)[i]
 
 		//log.Printf("[M] \nName: %s\nExec: %s\nParams: %s\nRestart: %d\n\n", service.Name, service.Exec, service.Params, service.Restart)
-		go service.Run(m.exit, m.OutPipe, m.ErrPipe)
+		go service.Run(ctx, m.OutPipe, m.ErrPipe)
 	}
 
-	m.listenStd()
+	for {
+		select {
+		case out := <-m.OutPipe:
+			fmt.Println(out)
+		case err := <-m.ErrPipe:
+			fmt.Println(err)
+		case <-ctx.Done():
+			m.stop()
+			return
+		}
+	}
 }
 
-func (m *Manager) Stop() {
+func (m *manager) stop() {
 	if !m.isRunning {
 		log.Fatal("[M] ProcessManager not started")
 	}
-	m.isStopped = true
 
-	log.Println("[M] Sending stop signal to tasks")
-	for range *m.serviceList {
-		m.exit <- true
-	}
-
-	log.Println("[M] Waiting tasks to exit")
+	log.Println("[M] Waiting services to finish")
 
 	counter := len(*m.serviceList)
 	fullStop := false
@@ -74,39 +79,8 @@ func (m *Manager) Stop() {
 			}
 		}
 
-		time.Sleep(1 * time.Second)
+		time.Sleep(500 * time.Millisecond)
 	}
 
 	m.isRunning = false
-}
-
-func (m Manager) waitFor(tasks []chan error) {
-	cases := make([]reflect.SelectCase, len(tasks))
-	for i, ch := range tasks {
-		cases[i] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(ch)}
-	}
-
-	remaining := len(cases)
-	for remaining > 0 {
-		chosen, value, ok := reflect.Select(cases)
-		if !ok {
-			log.Printf("[M] Read from channel %#v and received %s\n", tasks[chosen], value)
-			continue
-		}
-
-		// The chosen channel has been closed, so zero out the channel to disable the case
-		cases[chosen].Chan = reflect.ValueOf(nil)
-		remaining -= 1
-	}
-}
-
-func (m Manager) listenStd() {
-	for {
-		select {
-		case out := <-m.OutPipe:
-			fmt.Println(out)
-		case err := <-m.ErrPipe:
-			fmt.Println(err)
-		}
-	}
 }

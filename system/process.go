@@ -71,9 +71,9 @@ func (p process) Stop() error {
 	} else {
 		log.Printf("[P][%s] Killing..", p.name)
 
-		// 3 seconds given to end process, or kill it
+		// 10 seconds given to end process, or kill it
 		select {
-		case <-time.After(3 * time.Second):
+		case <-time.After(UNIT_START_TIMEOUT * time.Second):
 			return p.kill()
 		}
 	}

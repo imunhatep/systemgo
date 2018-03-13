@@ -1,39 +1,50 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"github.com/imunhatep/systemgo/system"
 	"io/ioutil"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
-	"fmt"
 	"runtime"
+	"sync"
 )
 
 func main() {
 	runtime.GOMAXPROCS(*flag.Int("j", 2, "GOMAXPROCS"))
 
-	taskMng := &system.Manager{}
-	go taskMng.Run(readConfig(*flag.String("f", "tasks.json", "JSON file with defined tasks")))
+	taskList := readConfig(*flag.String("f", "tasks.json", "JSON file with defined tasks"))
+	serviceMng := system.NewServiceManager(taskList)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	go func() {
+		serviceMng.Run(ctx)
+
+		wg.Done()
+	}()
 
 	sigChan := make(chan bool)
 	handleSig(sigChan)
 	<-sigChan
 
-	fmt.Println("exiting")
-
-	taskMng.Stop()
+	cancel()
+	wg.Wait()
 }
 
 func handleSig(sigChan chan<- bool) {
-	sigs := make(chan os.Signal)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	sigc := make(chan os.Signal, 1)
+	signal.Notify(sigc, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
-		sig := <-sigs
+		sig := <-sigc
 		fmt.Println()
 		fmt.Println(sig)
 		sigChan <- true

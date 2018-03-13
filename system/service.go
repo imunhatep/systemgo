@@ -1,11 +1,12 @@
 package system
 
 import (
-	"time"
-	"log"
-	"io"
-	"fmt"
 	"bufio"
+	"context"
+	"fmt"
+	"io"
+	"log"
+	"time"
 )
 
 type Service struct {
@@ -45,9 +46,9 @@ func (s Service) GetUsedMemory() uint64 {
 	return mem
 }
 
-func (s *Service) Run(exit chan bool, out, err chan<- string) {
+func (s *Service) Run(ctx context.Context, out, err chan<- string) {
 	if s.isStarted {
-		log.Printf("[S][%s] Service already started", s.Name)
+		log.Printf("[S][%s] Already started", s.Name)
 		return
 	}
 
@@ -55,41 +56,17 @@ func (s *Service) Run(exit chan bool, out, err chan<- string) {
 	s.isStarted = true
 
 	// do not start process if Service is exit
-	for !s.isStopped {
+	for !s.isStopped && !s.IsFinished() {
 		select {
-		case <-exit:
+		case <-ctx.Done():
 			s.stopProcess()
 			return
 		case <-time.After(time.Second):
 			s.handleProcess(out, err)
 		}
 	}
-}
 
-func (s *Service) Stop(done chan<- error) {
-	log.Printf("[S][%s] STOP exiting.. stopped: %d", s.Name, s.isStopped)
-
-	time.Sleep(3 * time.Second)
-
-	done <- nil
-}
-
-func (s Service) createProcess(out, err chan<- string) *process {
-	running := NewProcess(s.Name, s.Exec, s.Params)
-
-	started := make(chan error)
-	go running.Start(started)
-	<-started
-
-	return running
-}
-
-func (s *Service) startProcess(out, err chan<- string) {
-	s.running = s.createProcess(out, err)
-
-	// listen for STD
-	s.scanProcessStd(s.Name, &s.running.Out, out)
-	s.scanProcessStd(s.Name, &s.running.Err, err)
+	log.Printf("[S][%s] Finished", s.Name)
 }
 
 func (s *Service) handleProcess(out, err chan<- string) {
@@ -111,9 +88,6 @@ func (s *Service) handleProcess(out, err chan<- string) {
 
 			return
 		}
-
-		// nothing to do?!
-		time.Sleep(3 * time.Second)
 	}
 
 	if s.IsRunning() {
@@ -124,6 +98,20 @@ func (s *Service) handleProcess(out, err chan<- string) {
 	}
 }
 
+func (s *Service) startProcess(out, err chan<- string) {
+	running := NewProcess(s.Name, s.Exec, s.Params)
+
+	started := make(chan error)
+	go running.Start(started)
+	<-started
+
+	s.running = running
+
+	// listen for STD
+	s.scanProcessStd(s.Name, &s.running.Out, out)
+	s.scanProcessStd(s.Name, &s.running.Err, err)
+}
+
 func (s *Service) stopProcess() error {
 	if s.isStopped {
 		log.Printf("[S][%s] Service.Stop() already have been called", s.Name)
@@ -131,8 +119,8 @@ func (s *Service) stopProcess() error {
 	}
 
 	log.Printf("[S][%s] Received EXIT signal", s.Name)
-	s.isStopped = true
 
+	s.isStopped = true
 	if s.IsRunning() {
 		return s.running.Stop()
 	}

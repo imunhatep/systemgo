@@ -21,8 +21,6 @@ class TimeRunner
             $round = $this->tick();
 
             foreach ($round as $value) {
-                error_log(sprintf("%s\n", $value));
-
                 fwrite(STDOUT, $value . "\n");
                 //fwrite(STDERR, $value. "\n");
             }
