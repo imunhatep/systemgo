@@ -13,7 +13,7 @@ type Service struct {
 	Name    string
 	Exec    string
 	Params  []string
-	Restart bool
+	Restart int64
 
 	running   *process
 	history   []*process
@@ -23,6 +23,10 @@ type Service struct {
 
 func (s Service) IsNew() bool {
 	return len(s.history) == 0 && s.running == nil
+}
+
+func (s Service) IsRestarting() bool {
+	return s.IsFinished() && s.running == nil && s.Restart > 0
 }
 
 func (s Service) IsRunning() bool {
@@ -57,7 +61,7 @@ func (s *Service) Run(ctx context.Context, out, err chan<- string) {
 	s.isStarted = true
 
 	// do not start process if Service is exit
-	for !s.isStopped && !s.IsFinished() {
+	for !s.IsFinished() || s.IsRestarting() {
 		select {
 		case <-ctx.Done():
 			s.stopProcess(ctx.Err())
@@ -73,6 +77,17 @@ func (s *Service) handleProcess(out, err chan<- string) {
 	if s.IsNew() {
 		log.Printf("[S][%s] new process", s.Name)
 		s.startProcess(out, err)
+
+		return
+	}
+
+	if s.IsRestarting() {
+		lastRun := s.history[len(s.history)-1]
+
+		if time.Now().After(lastRun.Stopped.Add(time.Second * time.Duration(s.Restart))) {
+			s.startProcess(out, err)
+		}
+
 		return
 	}
 
@@ -82,12 +97,11 @@ func (s *Service) handleProcess(out, err chan<- string) {
 			s.running = nil
 		}
 
-		if s.Restart {
-			log.Printf("[S][%s] restarting", s.Name)
-			s.startProcess(out, err)
-
-			return
+		if s.Restart > 0 {
+			log.Printf("[S][%s] restarting in %d seconds", s.Name, s.Restart)
 		}
+
+		return
 	}
 
 	if s.IsRunning() {
@@ -119,8 +133,11 @@ func (s *Service) stopProcess(err error) error {
 	}
 
 	log.Printf("[S][%s] %s", s.Name, err)
-
 	time.Sleep(time.Second * 1)
+
+	// disable restarting
+	s.Restart = 0
+
 	s.isStopped = true
 	if s.IsRunning() {
 		return s.running.Stop()

@@ -16,13 +16,15 @@ go run main.go -j=2 -f=tasks.json
 JSON configuration example:
 ```json
 [
-  {"name": "php1", "exec": "/usr/bin/php", "params": ["./gen.php", "-m=0", "-x=10"], "restart": true},
-  {"name": "php2", "exec": "/usr/bin/php", "params": ["./gen.php", "-m=45", "-x=55"]},
-  {"name": "node1", "exec": "/usr/bin/node", "params": ["./gen.js", "-m=0", "-x=10"], "restart": true},
+  {"name": "php1", "exec": "/usr/bin/php", "params": ["./gen.php", "-m=0", "-x=10"], "restart": 0},
+  {"name": "php2", "exec": "/usr/bin/php", "params": ["./gen.php", "-m=15", "-x=25"]},
+  {"name": "node1", "exec": "/usr/bin/node", "params": ["./gen.js", "-m=30", "-x=40"], "restart": 5},
   {"name": "node2", "exec": "/usr/bin/node", "params": ["./gen.js", "-m=45", "-x=55"]}
 ]
-
 ```
+
+*restart* - seconds between job restart (after finishing). O (zero) means - do not restart.
+
 
 CTRL+C to exit process manager.
 
